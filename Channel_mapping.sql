@@ -297,4 +297,4 @@ SELECT
   ;
 
 DROP TABLE IF EXISTS adtech_stage.analytics_channel_mapping_mdl PURGE;
-ALTER TABLE analytics_channel_mapping_mdl_tmp rename to adtech_stage.analytics_channel_mapping_mdl_test;
+ALTER TABLE analytics_channel_mapping_mdl_tmp rename to adtech_stage.analytics_channel_mapping_mdl;
