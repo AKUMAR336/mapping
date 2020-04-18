@@ -16,28 +16,6 @@ SET spark.yarn.executor.memoryOverhead=3072;
 SET hive.auto.convert.join=false;
 
 use adtech_test;
-DROP TABLE IF EXISTS dim_driver_channel PURGE;
-CREATE TABLE dim_driver_channel stored as orc as
-SELECT
-  *
-from
-  mdh.enriched_attribution_store
-where
-  lower(entity_type) = 'driver'
-  and event_type = 'Signup'
-  and attribution_type = 'lca'
-;
-DROP TABLE IF EXISTS dim_client_channel PURGE;
-CREATE TABLE dim_client_channel stored as orc as
-SELECT
-  *
-from
-  mdh.enriched_attribution_store
-where
-  lower(entity_type) = 'rider'
-  and event_type = 'Signup'
-  and attribution_type = 'lca'
-;
 DROP TABLE IF EXISTS channel_mapping_marketing_ad_mdl PURGE;
 
 CREATE TABLE channel_mapping_marketing_ad_mdl stored as orc as
@@ -151,9 +129,13 @@ WITH country AS (
         channel AS channel,
         channel_group AS channel_group
     FROM dwh.dim_client AS riders
-      LEFT JOIN dim_client_channel AS channel ON riders.user_uuid = channel.user_uuid
+      LEFT JOIN mdh.enriched_attribution_store AS channel ON riders.user_uuid = channel.entity_id
       LEFT JOIN mdh.dim_city_mdl dc ON dc.city_id = riders.signup_city_id
       LEFT JOIN country ON country.country_id = dc.country_id
+      where
+    lower(entity_type) = 'rider'
+    and event_type = 'Signup'
+   and attribution_type = 'lca'
     GROUP BY 1,2,3,4,5
 ;
 
@@ -179,10 +161,14 @@ WITH country AS (
         channel AS channel,
         channel_group AS channel_group
     FROM dwh.dim_driver AS drivers
-      LEFT JOIN dim_driver_channel AS channels ON drivers.driver_uuid = channels.driver_uuid
+      LEFT JOIN mdh.enriched_attribution_store AS channels ON drivers.driver_uuid = channels.entity_id
       -- LEFT JOIN euclid.dim_driver_channel_new as channels ON drivers.driver_uuid = channels.driver_uuid
       LEFT JOIN mdh.dim_city_mdl dc ON dc.city_id = drivers.signup_city_id
       LEFT JOIN country ON country.country_id = dc.country_id
+      where
+  lower(entity_type) = 'driver'
+  and event_type = 'Signup'
+  and attribution_type = 'lca'
     GROUP BY 1,2,3,4,5
 ;
 
