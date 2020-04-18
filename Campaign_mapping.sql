@@ -6,40 +6,6 @@ SET hive.cbo.enable=false;
 SET hive.vectorized.execution.enabled=false;
 
 USE adtech_test;
-DROP TABLE IF EXISTS dim_driver_channel PURGE;
-CREATE TABLE dim_driver_channel stored as orc as
-SELECT
-  *
-from
-  mdh.enriched_attribution_store
-where
-  lower(entity_type) = 'driver'
-  and event_type = 'Signup'
-  and attribution_type = 'lca'
-;
-DROP TABLE IF EXISTS dim_client_channel PURGE;
-CREATE TABLE dim_client_channel stored as orc as
-SELECT
-  *
-from
-  mdh.enriched_attribution_store
-where
-  lower(entity_type) = 'rider'
-  and event_type = 'Signup'
-  and attribution_type = 'lca'
-;
-DROP TABLE IF EXISTS fact_eats_order_attribution PURGE;
-CREATE TABLE fact_eats_order_attribution stored as orc as
-SELECT
-  *
-from
-  mdh.enriched_attribution_store
-where
-   lower(entity_type) = 'eater'
-  and event_type in ('Order', 'FirstOrder')
-  and attribution_type = 'lca'
-;
-
 --get list of valid objective names from dim marketing ad for later verification
 DROP TABLE IF EXISTS campaign_dma_spend_types_mdl PURGE;
 CREATE TABLE campaign_dma_spend_types_mdl stored as orc as
@@ -74,7 +40,7 @@ SET hive.merge.sparkfiles=false;
 SET hive.stats.autogather=false;
 
 -- To avoid stats miscomputation specifically in `mdh.dim_driver_channel`
-analyze table dim_driver_channel compute statistics noscan;
+--analyze table mdh.enriched_attribution_store compute statistics noscan;
 
 --parse campaign name values from each table
 DROP TABLE IF EXISTS campaign_parser_mdl PURGE;
@@ -93,22 +59,31 @@ with cleaner as (
             'rider' as origin,
             entity_id as row_uuid,
             campaign_name as raw_campaign
-        from dim_client_channel
+        from  mdh.enriched_attribution_store
         where coalesce(campaign_name, '') != ''
+        and lower(entity_type) = 'rider'
+        and event_type = 'Signup'
+        and attribution_type = 'lca'
         union all
         select
             'driver' as origin,
             entity_id as row_uuid,
             campaign_tag as raw_campaign
-        from dim_driver_channel
+        from  mdh.enriched_attribution_store
         where coalesce(campaign_tag, '') != ''
+        and lower(entity_type) = 'driver'
+        and event_type = 'Signup'
+         and attribution_type = 'lca'
         union all
         select
             'eats_order' as origin,
             event_uuid as row_uuid,
             campaign_name as raw_campaign
-        from fact_eats_order_attribution
+        from  mdh.enriched_attribution_store
         where coalesce(campaign_name, '') != ''
+        and  lower(entity_type) = 'eater'
+         and event_type in ('Order', 'FirstOrder')
+        and attribution_type = 'lca'
     ) sources
 ),
 cm_parser as (
